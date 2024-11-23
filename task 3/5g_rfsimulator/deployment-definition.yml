@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-app-dev
+  labels:
+    app: mysql-app
+    type: database
+spec:
+  template:
+    metadata:
+      name: mysql-app-pod
+      labels:
+        app: mysql-app
+        type: database
+    spec:
+      volumes:
+        - name: task-pv-storage
+          persistentVolumeClaim:
+            claimName: task-pv-claim
+        - name: task-pv-storage2
+          persistentVolumeClaim:
+            claimName: task-pv-claim2
+      containers:
+      - name: rfsim5g-mysql
+        image: mysql:8.0
+        env:
+        - name: TZ
+          value: Europe/Paris
+        - name: MYSQL_DATABASE
+          value: oai_db
+        - name: MYSQL_USER
+          value: test
+        - name: MYSQL_PASSWORD
+          value: test
+        - name: MYSQL_ROOT_PASSWORD
+          value: linux
+        livenessProbe:
+          exec:
+            command:
+              - /bin/bash
+              - -c
+              - /tmp/mysql-healthcheck.sh
+          initialDelaySeconds: 0
+          periodSeconds: 10 # interval
+          timeoutSeconds: 5 # timeout
+          failureThreshold: 30 # retries
+        volumeMounts:
+          - mountPath: "/tmp/mysql-healthcheck.sh"
+            name: task-pv-storage
+          - mountPath: "/docker-entrypoint-initdb.d/oai_db.sql"
+            name: task-pv-storage2
+  replicas: 1
+  selector:
+    matchLabels:
+      type: database

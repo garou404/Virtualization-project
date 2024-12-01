@@ -1,17 +1,17 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mysql-app-dev
-  labels:
-    app: mysql-app
-    type: database
+  name: mysql-app-dep # name of the deployment object
+  labels: # key value pairs uzed to organize, select and filter resources
+    app: mysql-app # identify the application
+    type: database # categorize the application
 spec:
   template:
     metadata:
-      name: mysql-app-pod
-      labels:
-        app: mysql-app
-        type: database
+      name: mysql-app-pod # name of the pod
+      labels: # Labels for the pod. These are usually inherited from the deployment's labels, but can include additional or different ones.
+        app: mysql-app # tags the pod as part of the mysql application
+        type: database # categorize the pod as a database
     spec:
       volumes:
         - name: task-pv-storage
@@ -52,4 +52,182 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      type: database
+      type: database # The deployment uses this to identify and manage pods with the label type: database.
+
+---
+#OAI-AMF
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oai-amf-dep
+  labels:
+    app: oai-amf
+    type: oai-amf-type
+spec:
+  template:
+    metadata:
+      name: oai-amf-pod
+      labels:
+        app: oai-amf
+        type: oai-amf-type
+    spec:
+      volumes:
+        - name: config-volume-oai-amf
+          configMap:
+            name: mini-nonrf-config
+      # initContainers:
+      #   - name: wait-for-mysql
+      #     image: darthcabs/tiny-tools:1
+      #     args:
+      #       - /bin/bash
+      #       - -c
+      #       - >
+      #         set -x;
+      #         while ! mysqladmin ping -h rfsim5g-mysql --silent; do
+      #           echo 'Waiting for MySQL...';
+      #           sleep 15;
+      #         done;
+      containers:
+      - name: "rfsim5g-oai-amf"
+        image: oaisoftwarealliance/oai-amf:v2.0.0
+        env:
+        - name: TZ
+          value: Europe/Paris
+        volumeMounts:
+          - name: config-volume-oai-amf
+            mountPath: /openair-amf/etc/config.yaml
+            subPath: mini_nonrf_config.yaml
+  
+  replicas: 1
+  selector:
+    matchLabels:
+      type: oai-amf-type
+
+---
+#OAI-SMF
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oai-smf-dep
+  labels:
+    app: oai-smf
+    type: oai-smf-type
+spec:
+  template:
+    metadata:
+      name: oai-smf-pod
+      labels:
+        app: oai-smf
+        type: oai-smf-type
+    spec:
+      volumes:
+        - name: config-volume-oai-smf
+          configMap:
+            name: mini-nonrf-config
+      containers:
+      - name: "rfsim5g-oai-smf"
+        image: oaisoftwarealliance/oai-smf:v2.0.0
+        env:
+        - name: TZ
+          value: Europe/Paris
+        volumeMounts:
+          - name: config-volume-oai-smf
+            mountPath: /openair-smf/etc/config.yaml
+            subPath: mini_nonrf_config.yaml
+  
+  replicas: 1
+  selector:
+    matchLabels:
+      type: oai-smf-type
+
+
+---
+#OAI-UPF
+
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oai-upf-dep
+  labels:
+    app: oai-upf
+    type: oai-upf-type
+spec:
+  template:
+    metadata:
+      name: oai-upf-pod
+      labels:
+        app: oai-upf
+        type: oai-upf-type
+    spec:
+      volumes:
+        - name: config-volume-oai-upf
+          configMap:
+            name: mini-nonrf-config
+      containers:
+      - name: "rfsim5g-oai-upf"
+        image: oaisoftwarealliance/oai-upf:v2.0.0
+        env:
+        - name: TZ
+          value: Europe/Paris
+        volumeMounts:
+          - name: config-volume-oai-upf
+            mountPath: /openair-upf/etc/config.yaml
+            subPath: mini_nonrf_config.yaml
+        securityContext:
+          capabilities:
+            add: ["NET_ADMIN", "SYS_ADMIN"]
+            drop: ["ALL"]
+          privileged: true
+  replicas: 1
+  selector:
+    matchLabels:
+      type: oai-upf-type
+
+---
+# OAI-EXT-DN
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oai-ext-dn-dep
+  labels:
+    app: oai-ext-dn
+    type: oai-ext-dn-type
+spec:
+  template:
+    metadata:
+      name: oai-ext-dn-pod
+      labels:
+        app: oai-ext-dn
+        type: oai-ext-dn-type
+    spec:
+      containers:
+      - name: "rfsim5g-oai-ext-dn"
+        image: oaisoftwarealliance/trf-gen-cn5g:focal
+        command: 
+          - /bin/bash 
+          - -c
+          - |
+            iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE;
+            ip route add 12.1.1.0/24 via 192.168.72.134 dev eth0;
+            sleep infinity
+        livenessProbe:
+          exec:
+            command:
+              - /bin/bash
+              - -c
+              - "ping -c 2 192.168.72.134"
+          initialDelaySeconds: 0
+          periodSeconds: 10 # interval
+          timeoutSeconds: 5 # timeout
+          failureThreshold: 5 # retries
+        securityContext:
+          privileged: true
+  
+  replicas: 1
+  selector:
+    matchLabels:
+      type: oai-ext-dn-type

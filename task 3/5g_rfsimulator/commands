@@ -1,0 +1,15 @@
+
+kubectl apply -f test-pv.yaml 
+kubectl apply -f test-pvc.yaml
+kubectl create configmap mini-nonrf-config --from-file=yaml_files/mini_nonrf_config.yaml
+kubectl apply -f delpoyment-definition.yml
+
+kubectl delete -f deployment-definition.yml
+kubectl delete configmap mini-nonrf-config
+kubectl delete pvc task-pv-claim
+kubectl delete pvc task-pv-claim2
+kubectl delete pv task-pv-volume
+kubectl delete pv task-pv-volume2
+
+
+kubectl get configmap mini-nonrf-config -o yaml
